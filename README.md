@@ -12,3 +12,6 @@
 1. Arista EOS
 2. Cisco IOS
 
+## Prerequisites
+
+1. Go lang version 1.20+
