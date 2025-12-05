@@ -65,7 +65,7 @@ func (n *Node) TakeBackup() error {
 	if err != nil {
 		return err
 	}
-	fileName := fmt.Sprintf("%s.txt", n.Name)
+	fileName := fmt.Sprintf("%s", n.Name)
 	filePath := filepath.Join(OUT_DIR, fileName)
 	file, err := os.Create(filePath)
 	if err != nil {
