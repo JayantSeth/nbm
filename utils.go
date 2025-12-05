@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -17,19 +18,22 @@ type Data struct {
 }
 
 type Node struct {
-	Name string `yaml:"name"`
+	Name      string `yaml:"name"`
 	IpAddress string `yaml:"ip"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
-	Port string `yaml:"ssh_port"`
-	Type string `yaml:"type"`
+	Username  string `yaml:"username"`
+	Password  string `yaml:"password"`
+	Port      string `yaml:"ssh_port"`
+	Type      string `yaml:"type"`
 }
-
 
 func (n *Node) TakeBackupC(ch chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
-	n.TakeBackup()
-	ch <- fmt.Sprintf("%s backup successful\n", n.IpAddress)
+	err := n.TakeBackup()
+	if err != nil {
+		ch <- fmt.Sprintf("%s Backup failed: %s\n", n.IpAddress, err.Error())
+	} else {
+		ch <- fmt.Sprintf("%s backup successful\n", n.IpAddress)
+	}
 }
 
 func TakeMultipleBackup(nodes []Node) {
@@ -53,26 +57,28 @@ func TakeMultipleBackup(nodes []Node) {
 	fmt.Println(result)
 }
 
-
-func (n *Node) TakeBackup() {
+func (n *Node) TakeBackup() error {
 	commands := []string{"en", "term len 0", "show run"}
-	output := n.ExecuteCommands(commands)
+	output, err := n.ExecuteCommands(commands)
+	if err != nil {
+		return err
+	}
 	fileName := fmt.Sprintf("%s_%v.txt", n.IpAddress, time.Now().Unix())
 	file, err := os.Create(fileName)
 	if err != nil {
 		log.Printf("Backup output: %s\n", output)
-		log.Fatalf("Unable to create backup file: %s\n", err.Error())
+		return err
 	}
 	defer file.Close()
 
 	_, err = file.WriteString(output)
 	if err != nil {
-		log.Fatalf("Failed to write to file: %s\n", err.Error())
+		return err
 	}
-
+	return nil
 }
 
-func (n Node) ExecuteCommands(commands []string) string {
+func (n Node) ExecuteCommands(commands []string) (string, error) {
 	Ciphers := ssh.InsecureAlgorithms().Ciphers
 	Ciphers = append(Ciphers, ssh.SupportedAlgorithms().Ciphers...)
 	KeyExchanges := ssh.InsecureAlgorithms().KeyExchanges
@@ -93,43 +99,43 @@ func (n Node) ExecuteCommands(commands []string) string {
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Config: ssh.Config{
-			Ciphers: Ciphers,
+			Ciphers:      Ciphers,
 			KeyExchanges: KeyExchanges,
-			MACs: Macs,
+			MACs:         Macs,
 		},
 	}
 
-	client, err := ssh.Dial("tcp", n.IpAddress + ":" + n.Port, config)
+	client, err := ssh.Dial("tcp", n.IpAddress+":"+n.Port, config)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to connect to host: %v on port 22, error: %v, Username: %v, Password: %v", n.IpAddress, err, n.Username, n.Password)
-		return msg
+		return "", errors.New(msg)
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
 		msg := fmt.Sprintf("Failed to create a session with client: %v", err.Error())
-		return msg
+		return "", errors.New(msg)
 	}
 	defer session.Close()
 	stdin, err := session.StdinPipe()
 	if err != nil {
-		log.Fatalf("Unable to setup stdin for session: %v", err)
+		return "", err
 	}
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		log.Fatalf("Unable to setup stdout for session: %v", err)
+		return "", err
 	}
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		log.Fatalf("Unable to setup stderr for session: %v", err)
+		return "", err
 	}
 
 	output := ""
 
 	// Start the remote shell
 	if err := session.Shell(); err != nil {
-		log.Fatalf("Failed to start shell: %v", err)
+		return "", err
 	}
 
 	// Goroutine to read stdout
@@ -166,6 +172,6 @@ func (n Node) ExecuteCommands(commands []string) string {
 	stdin.Close()
 
 	// Wait for the session to finish (optional, depending on your needs)
-	session.Wait()	
-	return output
+	session.Wait()
+	return output, nil
 }
