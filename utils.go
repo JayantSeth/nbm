@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -14,7 +15,8 @@ import (
 )
 
 type Data struct {
-	Nodes []Node
+	Nodes  []Node
+	OutDir string `yaml:"out_dir" json:"out_dir"`
 }
 
 type Node struct {
@@ -63,8 +65,9 @@ func (n *Node) TakeBackup() error {
 	if err != nil {
 		return err
 	}
-	fileName := fmt.Sprintf("%s_%v.txt", n.IpAddress, time.Now().Unix())
-	file, err := os.Create(fileName)
+	fileName := fmt.Sprintf("%s.txt", n.Name)
+	filePath := filepath.Join(OUT_DIR, fileName)
+	file, err := os.Create(filePath)
 	if err != nil {
 		log.Printf("Backup output: %s\n", output)
 		return err

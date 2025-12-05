@@ -1,13 +1,15 @@
 nodes:
   - name: "arista_sw1"
     type: "arista_eos"
-    ip: "172.18.0.101"
+    ip: "172.18.0.105"
     ssh_port: "22"
     username: ${ARISTA_USER}
     password: ${ARISTA_PASS}
-  - name: "cisco_rtr1"
-    type: "cisco_ios"
-    ip: "172.18.0.102"
+  - name: "arista_sw1"
+    type: "arista_eos"
+    ip: "172.18.0.105"
     ssh_port: "22"
-    username: ${CISCO_USER}
-    password: ${CISCO_PASS}
+    username: ${ARISTA_USER}
+    password: ${ARISTA_PASS}
+
+out_dir: "backup"
